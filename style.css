@@ -164,6 +164,10 @@ body {
   gap: 10px;
   padding: 10px;
   z-index: 1000;
+  user-select: none; /* テキスト選択を禁止 */
+  -webkit-user-select: none; /* Safari対応 */
+  -webkit-touch-callout: none; /* 長押しのメニューを禁止（iOS Safari） */
+  touch-action: none; /* タッチのデフォルト動作（スクロールなど）を禁止 */
 }
 
 .btn {
@@ -176,28 +180,52 @@ body {
   align-items: center;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
+  user-select: none; /* テキスト選択を禁止 */
+  -webkit-user-select: none; /* Safari対応 */
+  -webkit-touch-callout: none; /* 長押しのメニューを禁止（iOS Safari） */
+  touch-action: none; /* タッチのデフォルト動作（スクロールなど）を禁止 */
 }
 
 .btn:active {
   background-color: #888;
+  user-select: none; /* テキスト選択を禁止 */
+  -webkit-user-select: none; /* Safari対応 */
+  -webkit-touch-callout: none; /* 長押しのメニューを禁止（iOS Safari） */
+  touch-action: none; /* タッチのデフォルト動作（スクロールなど）を禁止 */
 }
 
 .btn.up {
   grid-column: 2 / 3;
   grid-row: 1 / 2;
+  user-select: none; /* テキスト選択を禁止 */
+  -webkit-user-select: none; /* Safari対応 */
+  -webkit-touch-callout: none; /* 長押しのメニューを禁止（iOS Safari） */
+  touch-action: none; /* タッチのデフォルト動作（スクロールなど）を禁止 */
 }
 
 .btn.left {
   grid-column: 1 / 2;
   grid-row: 2 / 3;
+  user-select: none; /* テキスト選択を禁止 */
+  -webkit-user-select: none; /* Safari対応 */
+  -webkit-touch-callout: none; /* 長押しのメニューを禁止（iOS Safari） */
+  touch-action: none; /* タッチのデフォルト動作（スクロールなど）を禁止 */
 }
 
 .btn.down {
   grid-column: 2 / 3;
   grid-row: 3 / 4;
+  user-select: none; /* テキスト選択を禁止 */
+  -webkit-user-select: none; /* Safari対応 */
+  -webkit-touch-callout: none; /* 長押しのメニューを禁止（iOS Safari） */
+  touch-action: none; /* タッチのデフォルト動作（スクロールなど）を禁止 */
 }
 
 .btn.right {
   grid-column: 3 / 4;
   grid-row: 2 / 3;
+  user-select: none; /* テキスト選択を禁止 */
+  -webkit-user-select: none; /* Safari対応 */
+  -webkit-touch-callout: none; /* 長押しのメニューを禁止（iOS Safari） */
+  touch-action: none; /* タッチのデフォルト動作（スクロールなど）を禁止 */
 }
