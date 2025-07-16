@@ -107,6 +107,17 @@
       const resultContent = document.getElementById("resultContent");
       const UIText = document.getElementById("UIText");
       const itemList = document.getElementsByClassName("itemList");
+      const buttons = document.querySelectorAll(".controls .btn");
+
+      buttons.forEach((button) => {
+        // 長押し時のテキスト選択を防ぐ
+        button.addEventListener("touchstart", (e) => e.preventDefault(), {
+          passive: false,
+        });
+
+        // ドラッグ開始を防止
+        button.addEventListener("dragstart", (e) => e.preventDefault());
+      });
 
       //options
       let MAXHP = 100; //player hp
