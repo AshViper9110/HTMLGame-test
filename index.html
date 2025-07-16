@@ -7,6 +7,44 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
+    <div class="controls">
+      <button
+        class="btn up"
+        onpointerdown="keys.w=true"
+        onpointerup="keys.w=false"
+        ontouchcancel="keys.w=false"
+        ontouchend="keys.w=false"
+      >
+        ↑
+      </button>
+      <button
+        class="btn left"
+        onpointerdown="keys.a=true"
+        onpointerup="keys.a=false"
+        ontouchcancel="keys.a=false"
+        ontouchend="keys.a=false"
+      >
+        ←
+      </button>
+      <button
+        class="btn down"
+        onpointerdown="keys.s=true"
+        onpointerup="keys.s=false"
+        ontouchcancel="keys.s=false"
+        ontouchend="keys.s=false"
+      >
+        ↓
+      </button>
+      <button
+        class="btn right"
+        onpointerdown="keys.d=true"
+        onpointerup="keys.d=false"
+        ontouchcancel="keys.d=false"
+        ontouchend="keys.d=false"
+      >
+        →
+      </button>
+    </div>
     <div id="gameContainer">
       <div class="moveEria">
         <p id="UIText"></p>

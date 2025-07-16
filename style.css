@@ -149,3 +149,55 @@ body {
   z-index: 5; /* 他の要素の上に表示 */
   transform-origin: left center; /* 回転の基準点を左端に */
 }
+
+.controls {
+  position: fixed;
+  left: 10px;
+  bottom: 10px;
+  width: 140px; /* 十字キーのサイズ */
+  height: 140px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 10px;
+  display: grid;
+  grid-template-columns: 40px 40px 40px;
+  grid-template-rows: 40px 40px 40px;
+  gap: 10px;
+  padding: 10px;
+  z-index: 1000;
+}
+
+.btn {
+  background-color: #444;
+  color: white;
+  border-radius: 6px;
+  font-size: 28px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn:active {
+  background-color: #888;
+}
+
+.btn.up {
+  grid-column: 2 / 3;
+  grid-row: 1 / 2;
+}
+
+.btn.left {
+  grid-column: 1 / 2;
+  grid-row: 2 / 3;
+}
+
+.btn.down {
+  grid-column: 2 / 3;
+  grid-row: 3 / 4;
+}
+
+.btn.right {
+  grid-column: 3 / 4;
+  grid-row: 2 / 3;
+}
