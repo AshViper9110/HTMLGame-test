@@ -1,20 +1,34 @@
 /* 全体のスタイル：黒背景、余白なし、スクロール禁止、白文字 */
+html,
 body {
-  background-color: black;
   margin: 0;
-  overflow: hidden;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* スクロール禁止 */
+  background-color: black;
   color: white;
   font-family: sans-serif;
+  -webkit-user-select: none; /* 選択禁止（iOS Safari対応） */
+  user-select: none;
 }
 
-/* ゲーム画面のコンテナ：16:9のアスペクト比で画面中央に配置 */
+/* --- ゲーム画面コンテナ --- */
 #gameContainer {
+  position: fixed; /* ビューポートに固定 */
+  top: 50%;
+  left: 50%;
   width: 100vw;
-  aspect-ratio: 16 / 9;
-  max-height: 100vh;
-  margin: auto;
-  position: relative;
+  height: 100vh;
+
+  max-width: calc(100vh * (16 / 9)); /* 画面高さに合わせて最大幅 */
+  max-height: calc(100vw * (9 / 16)); /* 画面幅に合わせて最大高さ */
+
+  transform: translate(-50%, -50%); /* 中央に移動 */
+
   background-color: black;
+  box-sizing: border-box;
+  overflow: hidden;
   display: block;
 }
 
@@ -228,4 +242,10 @@ body {
   -webkit-user-select: none; /* Safari対応 */
   -webkit-touch-callout: none; /* 長押しのメニューを禁止（iOS Safari） */
   touch-action: none; /* タッチのデフォルト動作（スクロールなど）を禁止 */
+}
+
+* {
+  -webkit-tap-highlight-color: transparent; /* タップ時のハイライト除去 */
+  -webkit-touch-callout: none; /* 長押しメニュー禁止（iOS） */
+  touch-action: manipulation; /* タッチ操作のデフォルト動作制限 */
 }
