@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>movetest</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="gameContainer">
+      <div class="moveEria">
+        <p id="UIText"></p>
+        <input type="button" class="itemList" value="バタスコ" />
+        <input type="button" class="itemList" value="夢" />
+      </div>
+      <div class="player" id="player"></div>
+      <input type="button" class="action" value="⚔Attack" />
+      <input type="button" class="action" value="📶action" />
+      <input type="button" class="action" value="🛍item" />
+      <input type="button" class="action" value="✖mercy" />
+      <p class="UI" id="name">Name</p>
+      <p class="UI" id="level">LV 1</p>
+      <p class="UI" id="hpLabel">HP</p>
+      <div class="hpbar" id="hpbarback"></div>
+      <div class="hpbar" id="hpbar"></div>
+      <div class="bosshpbar" id="bosshpbarback"></div>
+      <div class="bosshpbar" id="bosshpbar"></div>
+      <div id="attackNote"></div>
+      <div class="enemy"></div>
+    </div>
+    <div id="titleContainer">
+      <h1 class="title">No Title</h1>
+      <input type="button" class="titleAction" value="play" />
+      <input type="button" class="titleAction" value="operation" />
+      <input type="button" class="titleAction" id="back" value="back" />
+      <h1 class="title" id="gameOverText" style="display: none">Game Over</h1>
+      <h1 class="title" style="display: none">Operation</h1>
+      <h1 class="title" style="display: none">Game Clear</h1>
+      <h1 id="titleContent" style="display: none">WASD = 移動</h1>
+      <h1 id="resultContent" style="display: none">WASD = 移動</h1>
+    </div>
+
+    <audio id="bgm" loop>
+      <source src="sounds/Roland BOSS Concert.mp3" type="audio/mpeg" />
+    </audio>
+    <audio id="se">
+      <source src="" type="audio/mpeg" />
+    </audio>
+
+    <script type="text/javascript">
+      const titleContainer = document.getElementById("titleContainer");
+      const gameContainer = document.getElementById("gameContainer");
+      const hpbarback = document.getElementById("hpbarback");
+      const bosshpbarback = document.getElementById("bosshpbarback");
+      const hpbar = document.getElementById("hpbar");
+      const bosshpbar = document.getElementById("bosshpbar");
+      const player = document.querySelector(".player");
+      const playerScene = document.getElementById("player");
+      const moveEria = document.querySelector(".moveEria");
+      const actionButtons = document.getElementsByClassName("action");
+      const titleButtons = document.getElementsByClassName("titleAction");
+      const titleButtonBack = document.getElementById("back");
+      const title = document.getElementsByClassName("title");
+      const UI = document.getElementsByClassName("UI");
+      const enemy = document.getElementsByClassName("enemy");
+      const bgm = document.getElementById("bgm");
+      const se = document.getElementById("se");
+      const titleContent = document.getElementById("titleContent");
+      const resultContent = document.getElementById("resultContent");
+      const UIText = document.getElementById("UIText");
+      const itemList = document.getElementsByClassName("itemList");
+
+      //options
+      let MAXHP = 100; //player hp
+      let attackStr = 10; //player Attack strength
+      let speed = 2.3; //player Speed
+      let MAXBOSSHP = 100;
+      let noteAttackCount = 15; //pattern base Count
+      let patternDirayTime = 1500; //ms
+      const noteSpeed = 5; //note Speed
+      let SoundVolume = { bgm: 0.15, se: 0.5 };
+      let attackStrDebug = 0; //debug用
+
+      //初期設定
+      let hitCount = 0;
+      const baseWidth = 1920;
+      const baseHeight = 1080;
+      let scale = 1;
+      const playerSize = 15;
+      const eriaSize = { width: 150, height: 150 };
+      const noteSize = { width: 50, height: 10 };
+      const buttonSize = { width: 250, height: 100 };
+      const uiSize = { width: 100, height: 30 };
+      const setLimitEria = { x: 0, y: 100 };
+      let limitEria = { x: baseWidth / 2, y: baseHeight / 2 + setLimitEria.y };
+      const spawnRadius = 250;
+      let x = limitEria.x;
+      let y = limitEria.y;
+      const keys = {};
+      const selectkeys = {};
+      let gameScene = "title";
+      let animationFrameId = null;
+      let selectButtonAnimationFrameId = null;
+      let isShowItems = false;
+      let avoidanceWidth = 0;
+      let avoidanceHeight = 0;
+      const baseUp = 50;
+      enemy[0].style.display = "block";
+      let gamepadIndex = null; // 使用するゲームパッドのインデックス
+      document.getElementById("bgm").volume = SoundVolume.bgm;
+      document.getElementById("se").volume = SoundVolume.se;
+      let HP = MAXHP; //player hp
+      let BossHP = MAXBOSSHP; //Boss HP
+      let selectedButtonIndex = 0; // 現在選択中のボタンのインデックス
+      let itemSelectedButtonIndex = 0;
+      let prevGameScene = null;
+      let isTriggerPush = false;
+      let gamepadPushes = []; // 各ボタンの押下状態を記録
+      let buttonState = []; // 各ボタンの状態変化を記録（押した瞬間にだけ反応）
+      let prevAxisX = 0; // 前フレームのスティックX軸
+      let axisYState = null; // Y軸の状態
+      let axisXState = null; // スティックが倒れた方向を記録
+      const threshold = 0.5; // どれくらい倒したら反応するか
+      let Score = 10000;
+      const textList = [
+        ":あなたは動揺している",
+        ":ケツイを固めろ",
+        ":あきらめるな",
+        ":まだ希望はある",
+        ":負けるな",
+      ];
+
+      // デバウンス関数
+      function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+          const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+          };
+          clearTimeout(timeout);
+          timeout = setTimeout(later, wait);
+        };
+      }
+
+      // スケール係数の更新
+      function updateScale() {
+        const containerWidth = document.body.clientWidth;
+        scale = containerWidth / baseWidth;
+        console.log("画面サイズが変わりました！幅:", containerWidth);
+        updateLimitEria();
+        updateElements();
+      }
+
+      // リサイズイベントリスナー（デバウンス適用）
+      const debouncedUpdateScale = debounce(updateScale, 100);
+      window.addEventListener("resize", debouncedUpdateScale);
+
+      function allReset() {
+        // Reset core game variables
+        speed = 2.3;
+        HP = MAXHP;
+        BossHP = MAXBOSSHP;
+        x = limitEria.x;
+        y = limitEria.y;
+        gameScene = "title";
+        avoidanceWidth = 0;
+        avoidanceHeight = 0;
+        selectedButtonIndex = 0;
+        itemSelectedButtonIndex = 0;
+        isShowItems = false;
+        enemy[0].style.display = "block";
+        enemy[0].style.opacity = "1"; // Reset enemy opacity
+        attackStr = 10; // Reset attack strength
+
+        // Stop all animations
+        cancelAnimationFrame(animationFrameId);
+        cancelAnimationFrame(selectButtonAnimationFrameId);
+        animationFrameId = null;
+        selectButtonAnimationFrameId = null;
+
+        // Clear attack notes
+        const attackNote = document.getElementById("attackNote");
+        attackNote.innerHTML = "";
+
+        // Reset UI text
+        UIText.textContent = "";
+
+        // Stop and reset BGM
+        //bgm.currentTime = 0;
+        //bgm.pause();
+
+        // Reset scale and elements
+        updateScale();
+        updateSceneDisplay();
+      }
+
+      function posReset() {
+        x = limitEria.x;
+        y = limitEria.y;
+      }
+
+      function playSE(src) {
+        se.src = src;
+        se.play();
+      }
+
+      function updateElements() {
+        // プレイヤー
+        player.style.width = playerSize * scale + "px";
+        player.style.height = playerSize * scale + "px";
+        player.style.left = (x - playerSize / 2) * scale + "px";
+        player.style.top = (y - playerSize / 2) * scale + "px";
+
+        // 移動エリア
+        moveEria.style.width = (eriaSize.width + avoidanceWidth) * scale + "px";
+        moveEria.style.height = eriaSize.height * scale + "px";
+        setEria(limitEria.x, limitEria.y);
+
+        // HP
+        hpbar.style.width = 3 * ((HP / MAXHP) * 100) * scale + "px";
+        hpbar.style.height = 20 * scale + "px";
+        hpbar.style.left = 1050 * scale + "px";
+        hpbar.style.top = (785 - baseUp + 10) * scale + "px";
+        hpbarback.style.width = 300 * scale + "px";
+        hpbarback.style.height = 20 * scale + "px";
+        hpbarback.style.left = 1050 * scale + "px";
+        hpbarback.style.top = (785 - baseUp + 10) * scale + "px";
+
+        //EnemyHP
+        bosshpbar.style.width = 3 * ((BossHP / MAXBOSSHP) * 100) * scale + "px";
+        bosshpbar.style.height = 20 * scale + "px";
+        bosshpbar.style.left = (limitEria.x - 300 / 2) * scale + "px";
+        bosshpbar.style.top = (450 - baseUp) * scale + "px";
+        bosshpbarback.style.width = 300 * scale + "px";
+        bosshpbarback.style.height = 20 * scale + "px";
+        bosshpbarback.style.left = (limitEria.x - 300 / 2) * scale + "px";
+        bosshpbarback.style.top = (450 - baseUp) * scale + "px";
+
+        //Enemy
+        enemy[0].style.width = 250 * scale + "px";
+        enemy[0].style.height = 250 * scale + "px";
+        enemy[0].style.left = (limitEria.x - 250 / 2) * scale + "px";
+        enemy[0].style.top = (150 - baseUp) * scale + "px";
+
+        // アクションボタン
+        let width = -575;
+        for (const item of actionButtons) {
+          item.style.width = buttonSize.width * scale + "px";
+          item.style.height = buttonSize.height * scale + "px";
+          item.style.left = (baseWidth / 2 + width) * scale + "px";
+          item.style.top = (baseHeight / 2 + 300 - baseUp) * scale + "px";
+          item.style.fontSize = 50 * scale + "px";
+          width += 300;
+        }
+
+        // アイテムボタン
+        let widthitemlist = -100;
+        for (const item of itemList) {
+          item.style.width = 250 * scale + "px";
+          item.style.height = 50 * scale + "px";
+          item.style.left = (baseWidth / 2 + widthitemlist) * scale + "px";
+          item.style.top = (baseHeight / 2 + 300 - baseUp) * scale + "px";
+          item.style.fontSize = 25 * scale + "px";
+          width += 320;
+        }
+
+        // UI
+        let widthUI = -300;
+        for (const item of UI) {
+          item.style.width = uiSize.width * scale + "px";
+          item.style.height = uiSize.height * scale + "px";
+          item.style.left = (baseWidth / 2 + widthUI) * scale + "px";
+          item.style.top = (baseHeight / 2 + 200 - baseUp + 10) * scale + "px";
+          item.style.fontSize = 30 * scale + "px";
+          if (item.id === "level") widthUI += 150;
+          else if (item.id === "hpLabel") widthUI += 250;
+          else widthUI += 100;
+        }
+
+        // タイトル要素
+        let heightTitle = 0;
+        for (const item of titleButtons) {
+          item.style.width = buttonSize.width * scale + "px";
+          item.style.height = buttonSize.height * scale + "px";
+          item.style.left = (baseWidth / 2 - 125) * scale + "px";
+          item.style.top =
+            (baseHeight / 2 + heightTitle - baseUp) * scale + "px";
+          item.style.fontSize = 50 * scale + "px";
+          heightTitle += 110;
+        }
+
+        titleButtonBack.style.width = buttonSize.width * scale + "px";
+        titleButtonBack.style.height = buttonSize.height * scale + "px";
+        titleButtonBack.style.left = (baseWidth / 2 - 125) * scale + "px";
+        titleButtonBack.style.top =
+          (baseHeight / 2 + heightTitle - baseUp) * scale + "px";
+
+        title[0].style.left = (baseWidth / 2 - 125) * scale + "px";
+        title[0].style.top = (baseHeight / 2 - 200 - baseUp) * scale + "px";
+        title[0].style.fontSize = 60 * scale + "px";
+        title[1].style.left = (baseWidth / 2 - 150) * scale + "px";
+        title[1].style.top = (baseHeight / 2 - 200 - baseUp) * scale + "px";
+        title[1].style.fontSize = 60 * scale + "px";
+        title[2].style.left = (baseWidth / 2 - 240) * scale + "px";
+        title[2].style.top = (baseHeight / 2 - 500 - baseUp) * scale + "px";
+        title[2].style.fontSize = 60 * scale + "px";
+        title[3].style.left = (baseWidth / 2 - 190) * scale + "px";
+        title[3].style.top = (baseHeight / 2 - 200 - baseUp) * scale + "px";
+        title[3].style.fontSize = 60 * scale + "px";
+
+        titleContent.style.left = (baseWidth / 2 - 200) * scale + "px";
+        titleContent.style.top = (baseHeight / 2 - 300 - baseUp) * scale + "px";
+        titleContent.style.fontSize = 60 * scale + "px";
+
+        resultContent.style.left = (baseWidth / 2 - 320) * scale + "px";
+        resultContent.style.top = (baseHeight / 2 - baseUp) * scale + "px";
+        resultContent.style.fontSize = 60 * scale + "px";
+      }
+
+      // アクションボタンのイベントリスナー
+      for (const item of actionButtons) {
+        item.addEventListener("click", function () {
+          console.log(item.value);
+          if (BossHP > 0) {
+            if (item.value === "✖mercy" && gameScene !== "avoidance") {
+              playSE("sounds/select.mp3");
+              gamepadPushes.fill(false);
+              allReset(); // ゲーム状態をリセット（必要に応じて）
+              gameScene = "title"; // タイトル画面に遷移
+              updateSceneDisplay(); // 画面を更新
+            } else if (gameScene !== "avoidance") {
+              if (item.value === "⚔Attack") {
+                BossHP -= attackStr + attackStrDebug;
+                playSE("sounds/attack.mp3");
+                if (BossHP <= 0) {
+                  gameScene = "action"; // Changed from "clear" to "action"
+                  bgm.pause(); // BGMを停止
+                  bgm.currentTime = 0;
+                  cancelAnimationFrame(animationFrameId); // プレイヤーの移動アニメーションを停止
+                  const attackNote = document.getElementById("attackNote");
+                  attackNote.innerHTML = ""; // 攻撃ノートをクリア
+                  // Fade out the enemy
+                  enemy[0].style.opacity = "0"; // Start the fade-out effect
+                  setTimeout(() => {
+                    enemy[0].style.display = "none"; // Hide the enemy after fading
+                    gamepadPushes.fill(false);
+                    allReset(); // ゲーム状態をリセット（必要に応じて）
+                    gameScene = "gameClear"; // タイトル画面に遷移
+                    updateSceneDisplay(); // 画面を更新
+                  }, 1000); // Match the transition duration (1s = 1000ms)
+                  // Optionally reset BossHP or other states if needed
+                  avoidanceWidth = 900; // Ensure action state dimensions
+                  avoidanceHeight = 0;
+                  for (const item of itemList) item.style.display = "none";
+                  UIText.textContent = "ボスを倒した！"; // Optional message
+                  updateElements();
+                  return;
+                }
+                enemy[0].style.backgroundColor = "red";
+                setTimeout(() => {
+                  enemy[0].style.backgroundColor = "white";
+                }, 100);
+                gameScene = "avoidance";
+                isShowItems = false;
+                updateSceneDisplay();
+              } else if (item.value === "🛍item") {
+                playSE("sounds/select.mp3");
+                if (isShowItems) {
+                  isShowItems = false;
+                } else {
+                  isShowItems = true;
+                }
+                updateSceneDisplay();
+              } else if (item.value === "📶action") {
+                playSE("sounds/select.mp3");
+                isShowItems = false;
+                actionNumfun();
+              } else {
+                playSE("sounds/select.mp3");
+                gameScene = "avoidance";
+                isShowItems = false;
+                updateSceneDisplay();
+              }
+            }
+          }
+        });
+      }
+
+      function actionNumfun() {
+        let actionNum = Math.floor(Math.random() * 2);
+        avoidanceHeight = 0;
+        for (const item of itemList) item.style.display = "none";
+        updateElements();
+        switch (actionNum) {
+          case 0:
+            UIText.textContent = "こぶしに力を込めた";
+            attackStr += 2;
+            setTimeout(() => {
+              UIText.textContent = `攻撃力が2上昇した`;
+            }, 500);
+            break;
+          case 1:
+            UIText.textContent = "ケツイを決めた";
+            HP += 30;
+            setTimeout(() => {
+              UIText.textContent = `体力が30回復した`;
+            }, 500);
+            playSE("sounds/heal.mp3");
+            break;
+        }
+        if (HP > MAXHP) {
+          HP = MAXHP;
+        }
+        setTimeout(() => {
+          gameScene = "avoidance";
+          updateSceneDisplay();
+        }, 1000);
+      }
+
+      // タイトルボタンのイベントリスナー
+      for (const item of titleButtons) {
+        item.addEventListener("click", function () {
+          console.log(item.value);
+          if (item.value === "play") {
+            allReset();
+            Score = 10000;
+            hitCount = 0;
+            gameScene = "action";
+            updateSceneDisplay();
+          } else if (item.value === "operation") {
+            gameScene = "operation";
+            updateSceneDisplay();
+          } else if (item.value === "back") {
+            gameScene = "title";
+            updateSceneDisplay();
+          }
+          playSE("sounds/select.mp3");
+        });
+      }
+
+      // アイテムボタンのイベントリスナー
+      for (const item of itemList) {
+        item.addEventListener("click", function () {
+          console.log(item.value);
+          if (item.value == "バタスコ") {
+            HP += 30;
+          } else if (item.value == "夢") {
+            HP += 20;
+          }
+          if (HP > 100) {
+            HP = 100;
+          }
+          isShowItems = false;
+          playSE("sounds/heal.mp3");
+          gameScene = "avoidance";
+          updateSceneDisplay();
+        });
+      }
+
+      function updateSceneDisplay() {
+        if (gameScene === "avoidance") {
+          posReset();
+          titleContainer.style.display = "none";
+          gameContainer.style.display = "block";
+          avoidanceWidth = 0;
+          avoidanceHeight = 0;
+          for (const item of itemList) item.style.display = "none";
+          playerScene.style.display = "block";
+          moveEria.style.display = "block";
+          for (const item of actionButtons) item.style.display = "block";
+          for (const item of UI) item.style.display = "block";
+          hpbar.style.display = "block";
+          hpbarback.style.display = "block";
+          title[0].style.display = "block";
+          title[1].style.display = "none";
+          title[2].style.display = "none";
+          titleContent.style.display = "none";
+          resultContent.style.display = "none";
+          UIText.textContent = "";
+          updateLimitEria();
+          // フォーカスをゲーム画面に設定
+          document.body.focus();
+          // プレイヤー移動開始
+          movePlayer();
+          setTimeout(() => {
+            createNote();
+          }, 500);
+          selectButton();
+          updateElements();
+        } else if (gameScene === "action") {
+          console.log("playsound");
+          bgm.play();
+          titleContainer.style.display = "none";
+          gameContainer.style.display = "block";
+          avoidanceWidth = 900;
+          playerScene.style.display = "none";
+          moveEria.style.display = "block";
+          for (const item of actionButtons) item.style.display = "block";
+          for (const item of UI) item.style.display = "block";
+          hpbar.style.display = "block";
+          hpbarback.style.display = "block";
+          title[0].style.display = "block";
+          title[1].style.display = "none";
+          title[2].style.display = "none";
+          title[3].style.display = "none";
+          titleContent.style.display = "none";
+          resultContent.style.display = "none";
+          cancelAnimationFrame(animationFrameId);
+          const attackNote = document.getElementById("attackNote");
+          attackNote.innerHTML = "";
+          let textRnd = Math.floor(Math.random() * textList.length);
+          UIText.textContent = textList[textRnd];
+          if (isShowItems) {
+            UIText.textContent = "";
+            avoidanceHeight = 100;
+            for (const item of itemList) item.style.display = "block";
+          } else {
+            avoidanceHeight = 0;
+            for (const item of itemList) item.style.display = "none";
+          }
+          selectButton();
+          updateElements();
+        } else if (gameScene === "title") {
+          bgm.pause(); // BGMを停止
+          bgm.currentTime = 0;
+          titleContainer.style.display = "block";
+          gameContainer.style.display = "none";
+          titleButtons[0].style.display = "block";
+          titleButtons[1].style.display = "block";
+          titleButtonBack.style.display = "none";
+          title[0].style.display = "block";
+          title[1].style.display = "none";
+          title[2].style.display = "none";
+          title[3].style.display = "none";
+          titleContent.style.display = "none";
+          resultContent.style.display = "none";
+          selectButton();
+          updateElements();
+        } else if (gameScene === "gameOver") {
+          bgm.pause(); // BGMを停止
+          bgm.currentTime = 0;
+          resultContent.innerHTML = `Hit回数: ${hitCount}<br>あなたのスコア: ${Score}`;
+          titleContainer.style.display = "block";
+          gameContainer.style.display = "none";
+          titleButtons[0].style.display = "none";
+          titleButtons[1].style.display = "none";
+          titleButtonBack.style.display = "block";
+          title[0].style.display = "none";
+          title[1].style.display = "block";
+          title[2].style.display = "none";
+          title[3].style.display = "none";
+          titleContent.style.display = "none";
+          resultContent.style.display = "block";
+          selectButton();
+          updateElements();
+        } else if (gameScene === "gameClear") {
+          console.log(hitCount);
+          resultContent.innerHTML = `Hit回数: ${hitCount}<br>あなたのスコア: ${Score}`;
+          bgm.pause(); // BGMを停止
+          bgm.currentTime = 0;
+          titleContainer.style.display = "block";
+          gameContainer.style.display = "none";
+          titleButtons[0].style.display = "none";
+          titleButtons[1].style.display = "none";
+          titleButtonBack.style.display = "block";
+          title[0].style.display = "none";
+          title[1].style.display = "none";
+          title[2].style.display = "none";
+          title[3].style.display = "block";
+          titleContent.style.display = "none";
+          resultContent.style.display = "block";
+          selectButton();
+          updateElements();
+        } else if (gameScene === "operation") {
+          bgm.pause(); // BGMを停止
+          bgm.currentTime = 0;
+          titleContainer.style.display = "block";
+          gameContainer.style.display = "none";
+          titleButtons[0].style.display = "none";
+          titleButtons[1].style.display = "none";
+          titleButtonBack.style.display = "block";
+          title[0].style.display = "none";
+          title[1].style.display = "none";
+          title[2].style.display = "none";
+          title[3].style.display = "none";
+          titleContent.style.display = "block";
+          resultContent.style.display = "none";
+          selectButton();
+          updateElements();
+        }
+      }
+
+      function movePlayer() {
+        if (gameScene !== "avoidance") {
+          cancelAnimationFrame(animationFrameId);
+          return;
+        }
+
+        const halfWidth = (eriaSize.width + avoidanceWidth) / 2;
+        const halfHeight = (eriaSize.height + avoidanceHeight) / 2;
+
+        // キー入力（WASD）
+        let moveX = 0;
+        let moveY = 0;
+        if (keys.w) moveY -= speed;
+        if (keys.s) moveY += speed;
+        if (keys.a) moveX -= speed;
+        if (keys.d) moveX += speed;
+
+        // ゲームパッド入力
+        if (gamepadIndex !== null) {
+          const gamepad = navigator.getGamepads()[gamepadIndex];
+          if (gamepad && gamepad.connected) {
+            // 左アナログスティック（axes[0]: 左右, axes[1]: 上下）
+            const stickX =
+              Math.abs(gamepad.axes[0]) > deadZone ? gamepad.axes[0] : 0;
+            const stickY =
+              Math.abs(gamepad.axes[1]) > deadZone ? gamepad.axes[1] : 0;
+
+            // スティックの入力に基づいて移動量を計算
+            moveX += stickX * speed;
+            moveY += stickY * speed;
+          }
+        }
+
+        // 移動量を適用
+        x += moveX;
+        y += moveY;
+
+        // 移動エリア内に制限
+        x = Math.max(
+          limitEria.x - halfWidth,
+          Math.min(x, limitEria.x + halfWidth - playerSize)
+        );
+        y = Math.max(
+          limitEria.y - halfHeight,
+          Math.min(y, limitEria.y + halfHeight - playerSize)
+        );
+
+        // プレイヤーの位置を更新
+        player.style.left = x * scale + "px";
+        player.style.top = y * scale + "px";
+        animationFrameId = requestAnimationFrame(movePlayer);
+      }
+
+      function selectButton() {
+        // シーンが変更された場合に初期化
+        let gamepadbutton = null;
+        if (gamepadIndex !== null) {
+          const gamepad = navigator.getGamepads()[gamepadIndex];
+          if (!gamepad) return;
+          gamepad.buttons[0] = false;
+
+          // ボタン処理
+          for (let i = 0; i < gamepad.buttons.length; i++) {
+            const isPressed = gamepad.buttons[i].pressed;
+
+            // 押した瞬間のみ反応（長押し無視）
+            if (isPressed !== gamepadPushes[i]) {
+              gamepadPushes[i] = isPressed; // 状態を更新
+
+              if (isPressed) {
+                console.log(`ボタン${i}を押した！`);
+
+                // ボタン0が押された場合、スペースキーの代わりに使う
+                if (i === 0) {
+                  selectkeys.space = true;
+                }
+              } else {
+                // ボタン0が離された場合
+                if (i === 0) {
+                  selectkeys.space = false;
+                }
+              }
+            }
+          }
+          // スティック処理
+          const axisX = gamepad.axes[0]; // -1～+1の範囲
+          const axisY = gamepad.axes[1]; // -1～+1の範囲
+
+          // 右に倒した瞬間 (X軸)
+          if (axisX > threshold && axisXState !== "right") {
+            console.log("右に倒した！");
+            selectkeys.d = true;
+            axisXState = "right"; // 右に倒れたことを記録
+          }
+
+          // 左に倒した瞬間 (X軸)
+          if (axisX < -threshold && axisXState !== "left") {
+            console.log("左に倒した！");
+            selectkeys.a = true;
+            axisXState = "left"; // 左に倒れたことを記録
+          }
+
+          // 上に倒した瞬間 (Y軸)
+          if (axisY > threshold && axisYState !== "up") {
+            console.log("上に倒した！");
+            selectkeys.w = true;
+            axisYState = "up"; // 上に倒れたことを記録
+          }
+
+          // 下に倒した瞬間 (Y軸)
+          if (axisY < -threshold && axisYState !== "down") {
+            console.log("下に倒した！");
+            selectkeys.s = true;
+            axisYState = "down"; // 下に倒れたことを記録
+          }
+
+          // 真ん中に戻した瞬間 (X軸とY軸)
+          if (Math.abs(axisX) < threshold && axisXState !== null) {
+            console.log("Xスティック戻した！");
+            selectkeys.d = false;
+            selectkeys.a = false;
+            axisXState = null; // Xスティックが戻ったことを記録
+          }
+
+          if (Math.abs(axisY) < threshold && axisYState !== null) {
+            console.log("Yスティック戻した！");
+            selectkeys.w = false;
+            selectkeys.s = false;
+            axisYState = null; // Yスティックが戻ったことを記録
+          }
+        }
+        if (prevGameScene !== gameScene) {
+          if (gameScene === "title") {
+            for (const item of titleButtons)
+              item.style.border = "4px solid orange";
+            selectedButtonIndex = 0;
+            titleButtons[selectedButtonIndex].style.border = "4px solid red";
+          } else if (gameScene === "operation" || gameScene === "gameOver") {
+            titleButtons[selectedButtonIndex].style.border = "4px solid red";
+          } else if (gameScene === "action") {
+            for (const item of actionButtons)
+              item.style.border = "4px solid orange";
+            itemSelectedButtonIndex = 0;
+            actionButtons[itemSelectedButtonIndex].style.border =
+              "4px solid red";
+          }
+          prevGameScene = gameScene;
+        }
+        // 上に移動 (wキー)
+        if (selectkeys.w) {
+          if (gameScene === "title") {
+            for (const item of titleButtons)
+              item.style.border = "4px solid orange";
+            selectedButtonIndex++;
+            if (selectedButtonIndex >= 2) {
+              selectedButtonIndex = 0;
+            }
+            titleButtons[selectedButtonIndex].style.border = "4px solid red";
+            console.log(selectedButtonIndex);
+          }
+          if (gameScene === "action") {
+            for (const item of itemList) item.style.border = "4px solid orange";
+            itemSelectedButtonIndex--;
+            if (itemSelectedButtonIndex < 0) {
+              itemSelectedButtonIndex = itemList.length - 1;
+            }
+            itemList[itemSelectedButtonIndex].style.border = "4px solid red";
+            console.log(itemSelectedButtonIndex);
+          }
+          selectkeys.w = false; // 連続移動防止（デバウンス）
+        }
+
+        // 下に移動 (sキー)
+        if (selectkeys.s) {
+          if (gameScene === "title") {
+            for (const item of titleButtons)
+              item.style.border = "4px solid orange";
+            selectedButtonIndex--;
+            if (selectedButtonIndex < 0) {
+              selectedButtonIndex = 1;
+            }
+            titleButtons[selectedButtonIndex].style.border = "4px solid red";
+            console.log(selectedButtonIndex);
+          }
+          if (gameScene === "action") {
+            for (const item of itemList) item.style.border = "4px solid orange";
+            itemSelectedButtonIndex++;
+            if (itemSelectedButtonIndex >= itemList.length) {
+              itemSelectedButtonIndex = 0;
+            }
+            itemList[itemSelectedButtonIndex].style.border = "4px solid red";
+            console.log(itemSelectedButtonIndex);
+          }
+          selectkeys.s = false; // 連続移動防止（デバウンス）
+        }
+
+        // 右に移動 (wキー)
+        if (selectkeys.a) {
+          if (gameScene === "action") {
+            for (const item of actionButtons)
+              item.style.border = "4px solid orange";
+            selectedButtonIndex--;
+            if (selectedButtonIndex < 0) {
+              selectedButtonIndex = actionButtons.length - 1;
+            }
+            actionButtons[selectedButtonIndex].style.border = "4px solid red";
+            console.log(selectedButtonIndex);
+          }
+          selectkeys.a = false; // 連続移動防止（デバウンス）
+        }
+
+        // 左に移動 (sキー)
+        if (selectkeys.d) {
+          if (gameScene === "action") {
+            for (const item of actionButtons)
+              item.style.border = "4px solid orange";
+            selectedButtonIndex++;
+            if (selectedButtonIndex >= actionButtons.length) {
+              selectedButtonIndex = 0;
+            }
+            actionButtons[selectedButtonIndex].style.border = "4px solid red";
+            console.log(selectedButtonIndex);
+          }
+          selectkeys.d = false; // 連続移動防止（デバウンス）
+        }
+        // ボタンアクティブ化 (spaceキー)
+        if (selectkeys.space || selectkeys.enter) {
+          if (gameScene === "title") {
+            titleButtons[selectedButtonIndex].click();
+          } else if (gameScene === "action") {
+            if (!isShowItems) {
+              actionButtons[selectedButtonIndex].click();
+              selectedButtonIndex = 0;
+            } else {
+              itemList[selectedButtonIndex].click();
+              selectedButtonIndex = 0;
+            }
+          } else if (
+            gameScene === "operation" ||
+            gameScene === "gameOver" ||
+            gameScene === "gameClear"
+          ) {
+            if (selectedButtonIndex == 2) {
+              gamepadPushes.fill(false);
+              allReset(); // ゲーム状態をリセット（必要に応じて）
+              gameScene = "title"; // タイトル画面に遷移
+              updateSceneDisplay(); // 画面を更新
+            }
+            titleButtonBack.style.border = "4px solid red";
+            selectedButtonIndex = 2;
+          }
+          selectkeys.space = false; // スペースキーのリセットは1回だけ
+          selectkeys.enter = false;
+        }
+        selectButtonAnimationFrameId = requestAnimationFrame(selectButton);
+      }
+
+      function setEria(x, y) {
+        const halfWidth = (eriaSize.width + avoidanceWidth) / 2;
+        const halfHeight = (eriaSize.height + avoidanceHeight) / 2;
+
+        moveEria.style.left = (x - halfWidth - 6 / scale) * scale + "px";
+        moveEria.style.top = (y - halfHeight - 6 / scale) * scale + "px";
+        moveEria.style.width = (eriaSize.width + avoidanceWidth) * scale + "px";
+        moveEria.style.height =
+          (eriaSize.height + avoidanceHeight) * scale + "px";
+      }
+
+      function updateLimitEria() {
+        limitEria = {
+          x: baseWidth / 2 + setLimitEria.x,
+          y: baseHeight / 2 + setLimitEria.y,
+        };
+        setEria(limitEria.x, limitEria.y);
+      }
+
+      function createNote() {
+        const attackNote = document.getElementById("attackNote");
+        const centerX = limitEria.x;
+        const centerY = limitEria.y;
+        const spawnInterval = 5; // 次のパターンまでの基本間隔（ミリ秒）
+        const totalDuration = Math.floor(Math.random() * 6) + noteAttackCount; // 攻撃フェーズの合計回数（ミリ秒）
+        let spawnCount = 0;
+        let activeNotes = 0; // 現在アクティブなノートの数
+        let isPatternRunning = false; // パターン実行中フラグ
+        const currentDistance = 350;
+
+        // 単一のノートを生成する関数
+        function createSingleNote(startX, startY, vx, vy) {
+          const note = document.createElement("div");
+          note.className = "attackNote";
+          attackNote.appendChild(note);
+
+          note.style.left = (startX - noteSize.width / 2) * scale + "px";
+          note.style.top = startY * scale + "px";
+          note.style.width = noteSize.width * scale + "px";
+          note.style.height = noteSize.height * scale + "px";
+
+          const rotation = (Math.atan2(vy, vx) * 180) / Math.PI;
+          note.style.transform = `rotate(${rotation}deg)`;
+
+          activeNotes++; // ノート生成時にカウント増
+          return { note, posX: startX, posY: startY };
+        }
+
+        // ノートの移動と衝突判定を処理する関数
+        function moveNote(noteObj, vx, vy) {
+          const { note, posX: initialX, posY: initialY } = noteObj;
+          let posX = initialX;
+          let posY = initialY;
+
+          const moveInterval = setInterval(() => {
+            posX += vx;
+            posY += vy;
+            note.style.left =
+              (posX - (noteObj.size?.width || 0) / 2) * scale + "px";
+            note.style.top =
+              (posY - (noteObj.size?.height || 0) / 2) * scale + "px";
+
+            if (checkCollision(note)) {
+              hitCount++;
+              Score -= 10;
+              playSE("sounds/damage.mp3");
+              console.log("プレイヤーとノートが衝突しました！");
+              HP = Math.max(0, HP - 2);
+              updateElements();
+              clearInterval(moveInterval);
+              note.remove();
+              activeNotes--; // ノート削除時にカウント減
+              checkPatternCompletion(false); // 衝突時は次のパターンを即座に開始しない
+              if (HP <= 0) {
+                gameScene = "gameOver";
+                bgm.pause(); // BGMを停止
+                bgm.currentTime = 0;
+                cancelAnimationFrame(animationFrameId); // プレイヤーの移動アニメーションを停止
+                const attackNote = document.getElementById("attackNote");
+                attackNote.innerHTML = ""; // 攻撃ノートをクリア
+                updateSceneDisplay();
+                return;
+              }
+            }
+          }, 16);
+
+          setTimeout(() => {
+            clearInterval(moveInterval);
+            note.remove();
+            activeNotes--; // タイムアウト時にもカウント減
+            checkPatternCompletion(true); // タイムアウト時はパターン完了をチェック
+            console.log("Note timeout");
+          }, 1500);
+        }
+
+        // パターン完了チェック
+        function checkPatternCompletion(isTimeout = false) {
+          if (HP <= 0 || BossHP <= 0) {
+            return; // ゲームオーバーの場合は何もしない
+          }
+        }
+
+        const notePatterns = [
+          spawnPattern1,
+          spawnPattern2,
+          spawnPattern2,
+          spawnPattern2,
+          spawnPattern3,
+          spawnPattern3,
+          spawnPattern4,
+          spawnPattern5,
+          spawnPattern5,
+        ];
+
+        function spawnNotes() {
+          if (spawnCount >= totalDuration && gameScene == "avoidance") {
+            console.log("攻撃フェーズ終了");
+            gameScene = "action";
+            updateSceneDisplay();
+            return;
+          }
+
+          if (gameScene === "avoidance") {
+            isPatternRunning = true;
+            const selectPattern = Math.floor(
+              Math.random() * notePatterns.length
+            );
+            console.log(`選択されたパターン: ${selectPattern}`);
+            notePatterns[selectPattern]();
+            spawnCount++;
+            setTimeout(spawnNotes, patternDirayTime); // 1.5秒後に次のパターンを呼び出し
+          }
+        }
+
+        // 攻撃フェーズ開始
+        if (gameScene === "avoidance") {
+          spawnNotes();
+        }
+
+        // ノートパターン1: ランダムな角度で5つのノートを生成
+        function spawnPattern1() {
+          for (let i = 0; i < Math.floor(Math.random() * 4) + 3; i++) {
+            const angle = Math.random() * 2 * Math.PI;
+            const startX = centerX + spawnRadius * Math.cos(angle);
+            const startY = centerY + spawnRadius * Math.sin(angle);
+
+            const dx = x - startX;
+            const dy = y - startY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const vx = (dx / distance) * noteSpeed;
+            const vy = (dy / distance) * noteSpeed;
+
+            const noteObj = createSingleNote(startX, startY, vx, vy);
+            moveNote(noteObj, vx, vy);
+          }
+        }
+
+        // ノートパターン2: 固定位置から5つのノートを生成
+        function spawnPattern2() {
+          const halfWidth = (eriaSize.width + avoidanceWidth) / 2;
+          const halfHeight = (eriaSize.height + avoidanceHeight) / 2;
+          const buffer = 200;
+
+          for (let i = 0; i < Math.floor(Math.random() * 4) + 3; i++) {
+            let startX, startY, vx, vy;
+            const side = Math.floor(Math.random() * 4);
+
+            switch (side) {
+              case 0:
+                startX = limitEria.x - halfWidth - buffer;
+                startY = limitEria.y + (Math.random() * 2 - 1) * halfHeight;
+                vx = noteSpeed;
+                vy = 0;
+                break;
+              case 1:
+                startX = limitEria.x + halfWidth + buffer;
+                startY = limitEria.y + (Math.random() * 2 - 1) * halfHeight;
+                vx = -noteSpeed;
+                vy = 0;
+                break;
+              case 2:
+                startX = limitEria.x + (Math.random() * 2 - 1) * halfWidth;
+                startY = limitEria.y - halfHeight - buffer;
+                vx = 0;
+                vy = noteSpeed;
+                break;
+              case 3:
+                startX = limitEria.x + (Math.random() * 2 - 1) * halfWidth;
+                startY = limitEria.y + halfHeight + buffer;
+                vx = 0;
+                vy = -noteSpeed;
+                break;
+            }
+
+            const noteObj = createSingleNote(startX, startY, vx, vy);
+            moveNote(noteObj, vx, vy);
+          }
+        }
+
+        function spawnPattern3() {
+          playSE("sounds/beamset.mp3");
+          const halfWidth = (eriaSize.width + avoidanceWidth) / 2;
+          const halfHeight = (eriaSize.height + avoidanceHeight) / 2;
+          const buffer = 330;
+          const beamSpeed = noteSpeed * 2;
+          const beamNoteSize = { width: 200, height: 10 };
+          const moveDelay = 800;
+
+          for (let i = 0; i < 4; i++) {
+            let startX, startY, vx, vy;
+            const side = Math.floor(Math.random() * 2);
+
+            switch (side) {
+              case 0:
+                startX =
+                  limitEria.x -
+                  beamNoteSize.width / 2 -
+                  halfWidth -
+                  buffer +
+                  100;
+                startY = limitEria.y + (Math.random() * 2 - 1) * halfHeight;
+                vx = beamSpeed;
+                vy = 0;
+                break;
+              case 1:
+                startX =
+                  limitEria.x -
+                  beamNoteSize.width / 2 +
+                  halfWidth +
+                  buffer +
+                  100;
+                startY = limitEria.y + (Math.random() * 2 - 1) * halfHeight;
+                vx = -beamSpeed;
+                vy = 0;
+                break;
+            }
+
+            // ビームノートの生成
+            const note = document.createElement("div");
+            note.className = "beamNote";
+            document.getElementById("attackNote").appendChild(note);
+
+            note.style.left = startX * scale + "px";
+            note.style.top = startY * scale + "px";
+            note.style.width = beamNoteSize.width * scale + "px";
+            note.style.height = beamNoteSize.height * scale + "px";
+
+            // 予測線の生成
+            const noteAria = document.createElement("div");
+            noteAria.className = "beamNoteAria";
+            document.getElementById("attackNote").appendChild(noteAria);
+            noteAria.style.left = startX * scale + "px";
+            noteAria.style.top = startY * scale + "px";
+            noteAria.style.width = beamNoteSize.width * scale * 5 + "px"; // 予測線を長く
+            noteAria.style.height = beamNoteSize.height * scale + "px";
+            noteAria.style.opacity = "0.5"; // 半透明で視認性確保
+            noteAria.style.backgroundColor = "rgba(255, 50, 50, 0.3)"; // 赤っぽい色で危険を示す
+            noteAria.style.transition = "opacity 0.3s"; // フェードアニメーション用
+
+            // ビームと予測線の回転
+            const rotation = (Math.atan2(vy, vx) * 180) / Math.PI;
+            note.style.transform = `rotate(${rotation}deg)`;
+            noteAria.style.transform = `rotate(${rotation}deg)`;
+
+            activeNotes++; // ビームもカウント
+            const noteObj = { note, posX: startX, posY: startY };
+
+            // 予測線のアニメーションと移動処理
+            setTimeout(() => {
+              // ビーム移動開始時に予測線をフェードアウト
+              noteAria.style.opacity = "0";
+              moveNote(noteObj, vx, vy);
+              // 予測線を少し遅れて完全に削除
+              setTimeout(() => {
+                noteAria.remove();
+              }, 300);
+            }, moveDelay);
+
+            // 予測線を点滅させる（オプション）
+            let blinkCount = 0;
+            const blinkInterval = setInterval(() => {
+              noteAria.style.opacity = blinkCount % 2 === 0 ? "0.5" : "0.2";
+              blinkCount++;
+              if (blinkCount >= 6) clearInterval(blinkInterval); // 3回点滅したら終了
+            }, 200);
+          }
+        }
+
+        // ノートパターン4: 円形に配置し、順番に中心に向かって移動
+        function spawnPattern4() {
+          const halfWidth = (eriaSize.width + avoidanceWidth) / 2;
+          const halfHeight = (eriaSize.height + avoidanceHeight) / 2;
+          const radius = Math.min(halfWidth, halfHeight) * 3;
+          const noteCount = Math.floor(Math.random() * 11) + 10;
+          const waitTime = 250;
+          const moveDelay = 300;
+
+          for (let i = 0; i < noteCount; i++) {
+            playSE("sounds/noteset1.mp3");
+            const angle = (i / noteCount) * 2 * Math.PI;
+            const startX = limitEria.x + radius * Math.cos(angle);
+            const startY = limitEria.y + radius * Math.sin(angle);
+
+            const dx = centerX - startX;
+            const dy = centerY - startY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const vx = (dx / distance) * noteSpeed;
+            const vy = (dy / distance) * noteSpeed;
+
+            const noteObj = createSingleNote(startX, startY, vx, vy);
+            setTimeout(() => {
+              moveNote(noteObj, vx, vy);
+            }, waitTime + i * moveDelay);
+          }
+        }
+
+        function spawnPattern5() {
+          playSE("sounds/beamset.mp3");
+          const halfWidth = (eriaSize.width + avoidanceWidth) / 2;
+          const halfHeight = (eriaSize.height + avoidanceHeight) / 2;
+          const buffer = 330;
+          const beamSpeed = noteSpeed * 2;
+          const beamNoteSize = { width: 200, height: 10 };
+          const moveDelay = 800;
+
+          for (let i = 0; i < 4; i++) {
+            let startX, startY, vx, vy;
+            const side = Math.floor(Math.random() * 2);
+
+            switch (side) {
+              case 0: // Top
+                startX = limitEria.x + (Math.random() * 2 - 1) * halfWidth;
+                startY =
+                  limitEria.y - beamNoteSize.height / 2 - halfHeight - buffer;
+                vx = 0;
+                vy = beamSpeed;
+                break;
+              case 1: // Bottom
+                startX = limitEria.x + (Math.random() * 2 - 1) * halfWidth;
+                startY =
+                  limitEria.y + beamNoteSize.height / 2 + halfHeight + buffer;
+                vx = 0;
+                vy = -beamSpeed;
+                break;
+            }
+
+            // ビームノートの生成
+            const note = document.createElement("div");
+            note.className = "beamNote";
+            document.getElementById("attackNote").appendChild(note);
+            startX += 100;
+            note.style.left = (startX - beamNoteSize.width / 2) * scale + "px"; // Center horizontally
+            note.style.top = (startY - beamNoteSize.height / 2) * scale + "px"; // Center vertically
+            note.style.width = beamNoteSize.width * scale + "px";
+            note.style.height = beamNoteSize.height * scale + "px";
+
+            // 予測線の生成
+            const noteAria = document.createElement("div");
+            noteAria.className = "beamNoteAria";
+            document.getElementById("attackNote").appendChild(noteAria);
+            noteAria.style.left =
+              (startX - beamNoteSize.width / 2) * scale + "px"; // Match note's centering
+            noteAria.style.top =
+              (startY - beamNoteSize.height / 2) * scale + "px";
+            noteAria.style.width = beamNoteSize.width * scale * 5 + "px"; // Fixed: match beam width
+            noteAria.style.height = beamNoteSize.height * scale + "px"; // Vertical prediction line
+            noteAria.style.opacity = "0.5";
+            noteAria.style.backgroundColor = "rgba(255, 50, 50, 0.3)";
+            noteAria.style.transition = "opacity 0.3s";
+
+            // ビームと予測線の回転
+            const rotation = (Math.atan2(vy, vx) * 180) / Math.PI;
+            note.style.transform = `rotate(${rotation}deg)`;
+            noteAria.style.transform = `rotate(${rotation}deg)`;
+
+            activeNotes++;
+            const noteObj = {
+              note,
+              posX: startX,
+              posY: startY,
+              size: beamNoteSize,
+            }; // Store size for moveNote
+
+            // 予測線のアニメーションと移動処理
+            setTimeout(() => {
+              noteAria.style.opacity = "0";
+              moveNote(noteObj, vx, vy);
+              setTimeout(() => {
+                noteAria.remove();
+              }, 300);
+            }, moveDelay);
+
+            // 予測線を点滅させる
+            let blinkCount = 0;
+            const blinkInterval = setInterval(() => {
+              noteAria.style.opacity = blinkCount % 2 === 0 ? "0.5" : "0.2";
+              blinkCount++;
+              if (blinkCount >= 6) clearInterval(blinkInterval);
+            }, 200);
+          }
+        }
+      }
+
+      function checkCollision(note) {
+        const playerRect = player.getBoundingClientRect();
+        const noteRect = note.getBoundingClientRect();
+
+        return (
+          playerRect.left < noteRect.right &&
+          playerRect.right > noteRect.left &&
+          playerRect.top < noteRect.bottom &&
+          playerRect.bottom > noteRect.top
+        );
+      }
+
+      document.body.addEventListener("keydown", (event) => {
+        const key = event.key === " " ? "space" : event.key.toLowerCase(); // スペースを "space" に変換
+        keys[key] = true;
+        console.log(`キー押下: ${event.key}`); // デバッグ用
+      });
+
+      document.body.addEventListener("keyup", (event) => {
+        const key = event.key === " " ? "space" : event.key.toLowerCase(); // スペースを "space" に変換
+        keys[key] = false;
+        console.log(`キー解放: ${event.key}`); // デバッグ用
+      });
+
+      document.body.addEventListener("keydown", (event) => {
+        const key = event.key === " " ? "space" : event.key.toLowerCase();
+        // キーが既に押されている（true）場合は無視
+        if (isTriggerPush) {
+          return;
+        } else {
+          isTriggerPush = true;
+          selectkeys[key] = true;
+        }
+        console.log(`キー押下: ${event.key}`); // デバッグ用
+      });
+
+      document.body.addEventListener("keyup", (event) => {
+        const key = event.key === " " ? "space" : event.key.toLowerCase();
+        isTriggerPush = false;
+        selectkeys[key] = false;
+        console.log(`キー解放: ${event.key}`); // デバッグ用
+      });
+
+      // ゲームパッド接続時のイベント
+      window.addEventListener("gamepadconnected", (event) => {
+        gamepadIndex = event.gamepad.index;
+        console.log(`ゲームパッド接続: インデックス ${gamepadIndex}`);
+      });
+
+      // ゲームパッド切断時のイベント
+      window.addEventListener("gamepaddisconnected", (event) => {
+        if (gamepadIndex === event.gamepad.index) {
+          gamepadIndex = null;
+          console.log(`ゲームパッド切断: インデックス ${event.gamepad.index}`);
+        }
+      });
+
+      // デッドゾーン設定（アナログスティックの微小な入力を無視）
+      const deadZone = 0.2;
+
+      updateSceneDisplay();
+      updateScale();
+    </script>
+  </body>
+</html>

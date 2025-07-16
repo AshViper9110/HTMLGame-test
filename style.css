@@ -1,0 +1,151 @@
+/* 全体のスタイル：黒背景、余白なし、スクロール禁止、白文字 */
+body {
+  background-color: black;
+  margin: 0;
+  overflow: hidden;
+  color: white;
+  font-family: sans-serif;
+}
+
+/* ゲーム画面のコンテナ：16:9のアスペクト比で画面中央に配置 */
+#gameContainer {
+  width: 100vw;
+  aspect-ratio: 16 / 9;
+  max-height: 100vh;
+  margin: auto;
+  position: relative;
+  background-color: black;
+  display: block;
+}
+
+/* タイトル画面のコンテナ：ゲーム画面と同じサイズと配置 */
+#titleContainer {
+  width: 100vw;
+  aspect-ratio: 16 / 9;
+  max-height: 100vh;
+  margin: auto;
+  position: relative;
+  background-color: black;
+  display: block;
+}
+
+/* プレイヤー：赤い四角、絶対位置で配置 */
+.player {
+  background-color: red;
+  position: absolute;
+  display: block;
+}
+
+/* 移動エリア：黒背景、白い枠線、サイズや位置の変更を滑らかに */
+.moveEria {
+  background-color: black;
+  position: absolute;
+  border: 6px solid white;
+  transition: left 0.3s ease, top 0.3s ease, width 0.3s ease, height 0.3s ease;
+}
+
+/* 攻撃ノート：白い長方形、回転可能、絶対位置 */
+.attackNote {
+  background-color: white;
+  position: absolute;
+  transform-origin: center;
+}
+
+/* アクションボタン：オレンジ枠、カーソル対応、黒背景 */
+.action {
+  position: absolute;
+  cursor: pointer;
+  background-color: black;
+  border: 4px solid orange;
+  color: orange;
+}
+
+/* UI要素：絶対位置で配置 */
+.UI {
+  position: absolute;
+}
+
+/* プレイヤーHPバー（前景）：黄色 */
+#hpbar {
+  background-color: yellow;
+  position: absolute;
+}
+
+/* プレイヤーHPバー（背景）：赤 */
+#hpbarback {
+  background-color: red;
+  position: absolute;
+}
+
+/* ボスHPバー（前景）：黄色 */
+#bosshpbar {
+  background-color: yellow;
+  position: absolute;
+}
+
+/* ボスHPバー（背景）：赤 */
+#bosshpbarback {
+  background-color: red;
+  position: absolute;
+}
+
+/* タイトル画面のボタン：オレンジ枠、カーソル対応 */
+.titleAction {
+  position: absolute;
+  background-color: black;
+  border: 4px solid orange;
+  color: orange;
+  cursor: pointer;
+}
+
+/* タイトルテキスト：中央揃え、絶対位置 */
+.title {
+  position: absolute;
+  text-align: center;
+}
+
+/* 敵：白い四角、フェードアウトアニメーション対応 */
+.enemy {
+  position: absolute;
+  background-color: white;
+  transition: opacity 1s ease; /* 1秒で透明度を滑らかに変化 */
+}
+
+/* 操作説明テキスト：中央揃え、絶対位置 */
+#titleContent {
+  position: absolute;
+  text-align: center;
+}
+
+#resultContent {
+  position: absolute;
+  text-align: center;
+}
+
+/* アイテムボタン：オレンジ枠、黒背景、カーソル対応 */
+.itemList {
+  background-color: black;
+  border: 2px solid orange;
+  color: orange;
+  cursor: pointer;
+}
+
+/* ビーム攻撃ノート：赤色、光沢効果、滑らかな移動 */
+.beamNote {
+  background-color: #ff4444; /* ビームらしい赤色 */
+  border: 1px solid #ffffff; /* 縁取りで視認性向上 */
+  position: absolute;
+  box-shadow: 0 0 10px #ff4444, 0 0 20px #ff4444; /* 光沢効果 */
+  transition: all 0.05s linear; /* スムーズな移動 */
+  transform-origin: left center; /* 回転の基準点を左端に */
+}
+
+/* ビームの予測線：半透明赤、クリック無効、回転対応 */
+.beamNoteAria {
+  position: absolute;
+  pointer-events: none; /* クリックを無効化 */
+  border: 1px solid rgba(255, 50, 50, 0.5);
+  box-sizing: border-box;
+  z-index: 5; /* 他の要素の上に表示 */
+  transform-origin: left center; /* 回転の基準点を左端に */
+}
